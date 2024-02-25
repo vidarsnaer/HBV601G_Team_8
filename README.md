@@ -1,2 +1,2 @@
-# HBV501G - Team 4
-Hildur Bjarkadóttir, Mikael Andri Ingason, Ragnheiður Þórðardóttir
+# HBV601G - Team 8 - Bakendi
+Dagur, Einar, Hildur Bjarkadóttir, Ragnheiður Þórðardóttir, Viðar Snær Viðarsson
