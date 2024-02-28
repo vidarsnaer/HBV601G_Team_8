@@ -11,7 +11,6 @@ import is.hi.hbv501g.hbv501gteam4.Services.UserService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -20,13 +19,13 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
-
+import org.springframework.web.bind.annotation.RestController;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.http.*;
 
-@Controller
+@RestController
 public class DiscController {
 
     DiscService discService;
@@ -51,20 +50,20 @@ public class DiscController {
      * @return redirects to home if logged in else to the index page
      */
     @RequestMapping("/home")
-    public String indexPageLoggedIn(HttpSession session, Model model) {
+    public ResponseEntity<List<Disc>> indexPageLoggedIn(HttpSession session, Model model) {
         User sessionUser = (User) session.getAttribute("LoggedInUser");
         if (sessionUser != null) {
             model.addAttribute("LoggedInUser", sessionUser);
             user = sessionUser;
         } else {
-            return "redirect:/";
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         }
         List<Disc> allDiscs = discService.findAll();
 
         //Add some data to the Model
         model.addAttribute("discs", allDiscs);
         model.addAttribute("showingFavorites", false);
-        return "home";
+        return ResponseEntity.ok().body(allDiscs);
     }
 
     /**
@@ -74,7 +73,7 @@ public class DiscController {
      * @return redirects to home if logged in else to the index page
      */
     @RequestMapping("/home/favorites")
-    public String homePageFavorites(HttpSession session, Model model) {
+    public ResponseEntity<List<Disc>> homePageFavorites(HttpSession session, Model model) {
         List<Favorite> favorites = favoriteService.findFavoritesByUser(user);
         List<Disc> favoriteDiscs = new ArrayList<>();
 
@@ -89,23 +88,9 @@ public class DiscController {
         //Add some data to the Model
         model.addAttribute("discs", favoriteDiscs);
         model.addAttribute("showingFavorites", true);
-        return "home";
+        return ResponseEntity.ok().body(favoriteDiscs);
     }
 
-    /**
-     * opens the page so a user can add a new disc
-     * @param disc a potential disc
-     * @param model
-     * @return the page to add a disc
-     */
-    @RequestMapping(value = "/addDisc", method = RequestMethod.GET)
-    public String addDiscGET(Disc disc, Model model) {
-        if (user != null) {
-            model.addAttribute("LoggedInUser", user);
-        }
-
-        return "addDisc";
-    }
 
     /**
      * adds a disc to the db
@@ -116,33 +101,19 @@ public class DiscController {
      * @return home is adding a disc was successful
      */
     @RequestMapping(value = "/addDisc", method = RequestMethod.POST)
-    public String addDiscPOST(Disc disc, BindingResult result, Model model, @RequestParam("image") MultipartFile[] images){
+    public ResponseEntity<String> addDiscPOST(Disc disc, BindingResult result, Model model, @RequestParam("image") MultipartFile[] images){
         if (result.hasErrors()) {
-            return "addDisc";
+            return ResponseEntity.ok().body("Successfully added disc.");
         }
 
         disc.setUser(user);
-
         Disc discSaved = discService.save(disc);
         addImage(discSaved, images);
-        return "redirect:/home";
+        //TODO: Skila Disc til baka?
+        return ResponseEntity.ok().body("Successfully added disc.");
     }
 
-    /**
-     * page to edit the disc
-     * @param id id of the disc that the user wants to edit
-     * @param model
-     * @return the page to edit a disc
-     */
-    @RequestMapping(value = "/update/{id}", method = RequestMethod.GET)
-    public String updateDiscGET(@PathVariable("id") long id, Model model) {
-        Disc discToUpdate = discService.findBydiscID(id);
-        model.addAttribute("disc", discToUpdate);
-        if (user != null) {
-            model.addAttribute("LoggedInUser", user);
-        }
-        return "updateDisc";
-    }
+
 
     /**
      * function to update the disc in the db
@@ -152,16 +123,17 @@ public class DiscController {
      * @param images images that were added to the disc
      * @return redirection to the home page.
      */
+    //@RequestMapping(value = "/update/{id}", method = RequestMethod.GET)?
     @RequestMapping(value = "/updateDisc", method = RequestMethod.POST)
-    public String updateDiscPOST(Disc disc, BindingResult result, Model model, @RequestParam("image") MultipartFile[] images) {
+    public ResponseEntity<String> updateDiscPOST(Disc disc, BindingResult result, Model model, @RequestParam("image") MultipartFile[] images) {
         if (result.hasErrors()) {
             System.out.println(result.getAllErrors());
-            return "redirect:/home";
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result.getAllErrors().toString());
         }
 
         Disc discSaved = discService.save(disc);
         addImage(discSaved, images);
-        return "redirect:/home";
+        return ResponseEntity.ok().body("Successfully updated disc.");
     }
 
     /**
@@ -171,10 +143,14 @@ public class DiscController {
      * @return redirection to the home page
      */
     @RequestMapping(value = "/delete/{id}", method = RequestMethod.GET)
-    public String deleteDisc(@PathVariable("id") long id, Model model) {
-        Disc discToDelete = discService.findBydiscID(id);
-        discService.delete(discToDelete);
-        return "redirect:/home";
+    public ResponseEntity<String> deleteDisc(@PathVariable("id") long id, Model model) {
+        Disc discToDelete = discService.findBydiscID(id)    ;
+        if (discToDelete != null) {
+            discService.delete(discToDelete);
+            return ResponseEntity.ok().body("Successfully deleted disc.");
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Disc not found.");
+        }
     }
 
     /**
@@ -185,11 +161,11 @@ public class DiscController {
      * @return the page to update a disc (same page it is called from)
      */
     @RequestMapping(value = "/deleteImage/{id}/{imageId}", method = RequestMethod.GET)
-    public String deleteImage(@PathVariable("id") long id,@PathVariable("imageId") long imageID,Model model) {
+    public ResponseEntity<String> deleteImage(@PathVariable("id") long id,@PathVariable("imageId") long imageID,Model model) {
         Image imageToDelete = imageService.findByimageID(imageID);
         deleteImage(imageToDelete);
         imageService.delete(imageToDelete);
-        return String.format("redirect:/update/%s", id);
+        return ResponseEntity.ok().body("Successfully deleted image.");
     }
 
     /**
@@ -278,7 +254,7 @@ public class DiscController {
      * @return the site or template for discDetails
      */
     @RequestMapping (value = "/disc/{id}", method = RequestMethod.GET)
-    public String discDetails(HttpSession session, @PathVariable("id") long id, Model model) {
+    public ResponseEntity<Disc> discDetails(HttpSession session, @PathVariable("id") long id, Model model) {
         //Retrieves the disc with the specified ID form the discService
         Disc disc = discService.findBydiscID(id);
 
@@ -298,7 +274,7 @@ public class DiscController {
             model.addAttribute("user_id", user.getId());
             model.addAttribute("LoggedInUser", user);
         }
-        return "discDetails";
+        return ResponseEntity.ok().body(disc);
     }
 
     /**
@@ -308,7 +284,7 @@ public class DiscController {
      * @return the detail page (same page that the function is called from)
      */
     @RequestMapping(value= "/favorites/{discId}", method = RequestMethod.GET)
-    public String addToFavorites(HttpSession session, @PathVariable("discId") long discId) {
+    public ResponseEntity<String> addToFavorites(HttpSession session, @PathVariable("discId") long discId) {
         User sessionUser = (User) session.getAttribute("LoggedInUser");
         if (sessionUser != null) {
             Disc newFavoriteDisc = discService.findBydiscID(discId);
@@ -316,9 +292,9 @@ public class DiscController {
             Favorite favorite = new Favorite(sessionUser, newFavoriteDisc);
             favoriteService.save(favorite);
 
-            return "redirect:/disc/" + discId;
+            return ResponseEntity.ok().body("Successfully added disc to favorites.");
         } else {
-            return "redirect:/";
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         }
     }
 
@@ -329,15 +305,15 @@ public class DiscController {
      * @return
      */
     @RequestMapping(value= "/favorites/remove/{discId}/{favoriteId}", method = RequestMethod.GET)
-    public String removeFromFavorites(HttpSession session, @PathVariable("discId") long discId, @PathVariable("favoriteId") long favoriteId) {
+    public ResponseEntity<String> removeFromFavorites(HttpSession session, @PathVariable("discId") long discId, @PathVariable("favoriteId") long favoriteId) {
         User sessionUser = (User) session.getAttribute("LoggedInUser");
         if (sessionUser != null) {
             Favorite favorite = favoriteService.findById(favoriteId);
             favoriteService.delete(favorite);
-            return "redirect:/disc/" + discId;
+            return ResponseEntity.ok().body("Successfully removed disc from favorites.");
 
         } else {
-            return "redirect:/";
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         }
     }
 
@@ -358,7 +334,7 @@ public class DiscController {
      * @return filtered site
      */
     @GetMapping("/filter")
-    public String filterDiscs(@RequestParam(value = "fromPrice", required = false) Integer fromPrice,
+    public ResponseEntity<List<Disc>> filterDiscs(@RequestParam(value = "fromPrice", required = false) Integer fromPrice,
                               @RequestParam(value = "toPrice", required = false) Integer toPrice,
                               @RequestParam(value = "colour", required = false) String colour,
                               @RequestParam(value = "condition", required = false) String condition,
@@ -407,6 +383,6 @@ public class DiscController {
         model.addAttribute("discs", filteredDiscs);
         model.addAttribute("return", true);
 
-        return "home";
+        return ResponseEntity.ok().body(filteredDiscs);
     }
 }

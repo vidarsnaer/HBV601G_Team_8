@@ -4,15 +4,21 @@ import is.hi.hbv501g.hbv501gteam4.Persistence.Entities.User;
 import is.hi.hbv501g.hbv501gteam4.Services.UserService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
+import org.springframework.http.HttpRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
-@Controller
+import java.security.Principal;
+
+@RestController
 public class AccountController {
+
+    // TODO: Nota frekar id en name til að authenticatea.
     private UserService userService;
 
     private User user;
@@ -28,18 +34,21 @@ public class AccountController {
      * @param session session id
      * @return redirects to the home page if logged in, otherwise to the index page
      */
-    @GetMapping("/account")
-    public String indexPage(Model model, HttpSession session) {
-        User loggedInUser = (User) session.getAttribute("LoggedInUser");
-
-        if (loggedInUser != null) {
-            model.addAttribute("LoggedInUser", loggedInUser);
-            user = loggedInUser;
-        } else {
-            return "redirect:/";
+    @GetMapping("/account/loggedinuser")
+    public ResponseEntity<User> userLoggedIn(Principal principal) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null) {
+            String test = authentication.getName();
         }
-
-        return "account";
+        String username = principal.getName();
+        User currentUser = userService.findByName(username);
+        if (currentUser != null) {
+            user = currentUser;
+            return ResponseEntity.ok().body(user);
+        } else {
+            user = null;
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(user);
+        }
     }
 
     /**
@@ -48,16 +57,21 @@ public class AccountController {
      * @return redirects back to the account page
      */
     @PostMapping("/account/changename")
-    public String changeName(@RequestParam("name") String newName) {
-
+    public ResponseEntity<String> changeName(Principal principal, @RequestParam("name") String newName) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null) {
+            String test = authentication.getName();
+        }
+        String username = principal.getName();
+        User currentUser = userService.findByName(username);
         String result = newName.replaceAll("\\s+", " ");
 
         if (!result.isEmpty()) {
             user.setName(newName);
             userService.save(user);
+            return ResponseEntity.ok().body("Name successfully changed.");
         }
-
-        return "redirect:/account";
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Empty name request.");
     }
 
     /**
@@ -67,7 +81,7 @@ public class AccountController {
      * @return redirects back to the account page
      */
     @PostMapping("/account/changeemail")
-    public String changeEmail(@RequestParam("old-email") String oldEmail, @RequestParam("new-email") String newEmail) {
+    public ResponseEntity<String> changeEmail(Principal principal, @RequestParam("old-email") String oldEmail, @RequestParam("new-email") String newEmail) {
 
         if (oldEmail.equals(user.getEmail())) {
             String result = newEmail.replaceAll("\\s+", " ");
@@ -78,7 +92,7 @@ public class AccountController {
             }
         }
 
-        return "redirect:/account";
+        return ResponseEntity.ok().body("Email successfully changed.");
     }
 
     /**
@@ -89,7 +103,7 @@ public class AccountController {
      * @return redirects back to the account page
      */
     @PostMapping("/account/changepass")
-    public String changePassword(@RequestParam("old-pass") String oldPass, @RequestParam("new-pass") String newPass, @RequestParam("confirm-pass") String confirmPass) {
+    public ResponseEntity<String> changePassword(@RequestParam("old-pass") String oldPass, @RequestParam("new-pass") String newPass, @RequestParam("confirm-pass") String confirmPass) {
 
         BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -106,7 +120,7 @@ public class AccountController {
             }
         }
 
-        return "redirect:/account";
+        return ResponseEntity.ok().body("Password successfully changed.");
     }
 
     /**
@@ -116,16 +130,16 @@ public class AccountController {
      * @return if the password is correct then the user is redirected to the home page, otherwise the account page
      */
     @PostMapping("/account/delete")
-    public String deleteAccount(HttpSession session, @RequestParam("pass") String password) {
+    public ResponseEntity<String> deleteAccount(Principal principal, @RequestParam("pass") String password) {
 
         BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
         if (passwordEncoder.matches(password, user.getPassword())) {
             userService.delete(user);
             session.invalidate();
-            return "redirect:/";
+            return ResponseEntity.ok().body("Account successfully deleted.");
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid password.");
         }
-
-        return "redirect:/account";
     }
 }

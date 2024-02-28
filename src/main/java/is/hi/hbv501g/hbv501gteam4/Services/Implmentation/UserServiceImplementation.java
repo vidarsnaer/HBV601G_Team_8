@@ -4,6 +4,9 @@ import is.hi.hbv501g.hbv501gteam4.Persistence.Entities.User;
 import is.hi.hbv501g.hbv501gteam4.Repositories.UserRepository;
 import is.hi.hbv501g.hbv501gteam4.Services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -41,6 +44,11 @@ public class UserServiceImplementation implements UserService {
     }
 
     @Override
+    public User findByName(String name) {
+        return userRepository.findByName(name);
+    }
+
+    @Override
     public User findById(long id) {
         return userRepository.findById(id);
     }
@@ -58,5 +66,14 @@ public class UserServiceImplementation implements UserService {
         return null;
     }
 
+    @Override
+    public User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && !(authentication instanceof AnonymousAuthenticationToken)) {
+            String currentUserName = authentication.getName();
+            return findByName(currentUserName);
+        }
+        return null;
+    }
 
 }

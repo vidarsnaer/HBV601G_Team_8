@@ -4,13 +4,18 @@ import is.hi.hbv501g.hbv501gteam4.Persistence.Entities.User;
 import is.hi.hbv501g.hbv501gteam4.Services.UserService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-@Controller
+import java.security.Principal;
+
+@RestController
+@RequestMapping(path = "/user")
 public class UserController {
 
     UserService userService;
@@ -20,11 +25,6 @@ public class UserController {
         this.userService = userService;
     }
 
-    @RequestMapping(value = "/login", method = RequestMethod.GET)
-    public String loginGET(User user) {
-        return "login";
-    }
-
 
     /**
      * Handles the user sign in
@@ -32,25 +32,22 @@ public class UserController {
      * @return redirects to home page if successful, otherwise index page
      */
     @RequestMapping(value = "/login", method = RequestMethod.POST)
-    public String loginPOST(User user, BindingResult result, Model model, HttpSession session) {
+    public ResponseEntity<String> loginPOST(Principal principal, User user, BindingResult result, Model model, HttpSession session) {
 
         if(result.hasErrors()){
-            return "login";
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result.getAllErrors().toString());
         }
         User exists = userService.login(user);
         if(exists != null){
             session.setAttribute("LoggedInUser", exists);
             model.addAttribute("LoggedInUser", exists);
-            return "redirect:/home";
+            return ResponseEntity.ok().body("Successfully logged in.");
         }
-        return "redirect:/";
+        else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
+        }
     }
 
-
-    @RequestMapping(value = "/signup", method = RequestMethod.GET)
-    public String signupGET(User user) {
-        return "signup";
-    }
 
     /**
      * Handles the user sign up
@@ -59,14 +56,14 @@ public class UserController {
      * @return
      */
     @RequestMapping(value = "/signup", method = RequestMethod.POST)
-    public String signupPOST(User user, BindingResult result, Model model, HttpSession session, @RequestParam("confirm-password") String confirmPassword) {
+    public ResponseEntity<String> signupPOST(User user, BindingResult result, Model model, HttpSession session, @RequestParam("confirm-password") String confirmPassword) {
 
         if(result.hasErrors()){
-            return "redirect:/signup";
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result.getAllErrors().toString());
         }
 
         if (!user.getPassword().equals(confirmPassword)) {
-            return "redirect:/signup?error=password-mismatch";
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Incorrect password");
         }
 
         User exists = userService.findByEmail(user.getEmail());
@@ -79,10 +76,13 @@ public class UserController {
             if(loginUser != null){
                 session.setAttribute("LoggedInUser", loginUser);
                 model.addAttribute("LoggedInUser", loginUser);
-                return "redirect:/home";
+                return ResponseEntity.ok().body("Successfully logged in.");
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body("User couldn't be signed up.");
             }
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
         }
-        return "redirect:/";
     }
 
     /**
@@ -91,9 +91,9 @@ public class UserController {
      * @return redirects back to the index page
      */
     @RequestMapping("/logout")
-    public String logout(HttpSession session) {
+    public ResponseEntity<String> logout(HttpSession session) {
         session.invalidate();
-        return "redirect:/";
+        return ResponseEntity.ok().body("Successfully logged out.");
     }
 
 }

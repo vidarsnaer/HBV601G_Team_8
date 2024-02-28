@@ -4,21 +4,27 @@ import is.hi.hbv501g.hbv501gteam4.Persistence.Entities.Conversation;
 import is.hi.hbv501g.hbv501gteam4.Persistence.Entities.Message;
 import is.hi.hbv501g.hbv501gteam4.Persistence.Entities.User;
 import is.hi.hbv501g.hbv501gteam4.Services.*;
-import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RestController;
 
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 
-@Controller
+@RestController
 public class ChatController {
 
     ConversationService conversationService;
     UserService userService;
     MessageService messageService;
+
+
 
 
     @Autowired
@@ -30,55 +36,52 @@ public class ChatController {
 
     /**
      * Opens up the account page if a user is logged in
-     * @param session the user session
-     * @param model
      * @return redirects to the chat page if logged in, otherwise to the index page
      */
     @RequestMapping("/chat")
-    public String chatPage(HttpSession session, Model model) {
-        User sessionUser = (User) session.getAttribute("LoggedInUser");
-        if (sessionUser != null) {
-            model.addAttribute("LoggedInUser", sessionUser);
-        } else {
-            return "redirect:/";
+    public ResponseEntity<List<Conversation>> chatPage(Principal principal) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null) {
+            String test = authentication.getName();
         }
-        List<Conversation> allConversations = conversationService.findBySellerIdOrBuyerId(sessionUser.getId());
-
-        List<User> contacts = new ArrayList<>();
-        for (Conversation conversation : allConversations) {
-            if (conversation.getBuyerID() == sessionUser.getId()) {
-                contacts.add(userService.findById(conversation.getSellerID()));
-            } else {
-                contacts.add(userService.findById(conversation.getBuyerID()));
+        String username = principal.getName();
+        User currentUser = userService.findByName(username);
+        if (currentUser != null) {
+            List<Conversation> allConversations = conversationService.findBySellerIdOrBuyerId(currentUser.getId());
+            List<User> contacts = new ArrayList<>();
+            for (Conversation conversation : allConversations) {
+                if (conversation.getBuyerID() == currentUser.getId()) {
+                    contacts.add(userService.findById(conversation.getSellerID()));
+                } else {
+                    contacts.add(userService.findById(conversation.getBuyerID()));
+                }
             }
+            //TODO: method fyrir contacts?
+            return ResponseEntity.ok().body(allConversations);
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         }
-
-        //Add some data to the Model
-        model.addAttribute("conversations", allConversations);
-        model.addAttribute("contacts", contacts);
-        model.addAttribute("activeConversation", false);
-
-        return "chat";
     }
 
     /**
      * Opens up a conversation between two users
-     * @param session the user session
      * @param conversationId the id of the conversation
-     * @param model
      * @return displays the conversation
      */
     @GetMapping("/chat/{id}")
-    public String selectConversation(HttpSession session, @PathVariable("id") long conversationId, Model model) {
-        User sessionUser = (User) session.getAttribute("LoggedInUser");
-        if (sessionUser != null) {
-            model.addAttribute("LoggedInUser", sessionUser);
-        } else {
-            return "redirect:/";
+    public ResponseEntity<Conversation> selectConversation(Principal principal, @PathVariable("id") long conversationId, Model model) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null) {
+            String test = authentication.getName();
+        }
+        String username = principal.getName();
+        User currentUser = userService.findByName(username);
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         }
 
         Conversation selectedConversation = conversationService.findByConversationID(conversationId);
-        List<Conversation> allConversations = conversationService.findBySellerIdOrBuyerId(sessionUser.getId());
+        List<Conversation> allConversations = conversationService.findBySellerIdOrBuyerId(currentUser.getId());
 
         List<Message> allMessages = messageService.findByConversationID(conversationId);
 
@@ -86,7 +89,7 @@ public class ChatController {
 
         List<String> names = new ArrayList<>();
         for (Message message : allMessages) {
-            if(message.getSenderID() == sessionUser.getId()) {
+            if(message.getSenderID() == currentUser.getId()) {
                 names.add("You");
             } else {
                 User user = userService.findById(message.getSenderID());
@@ -112,7 +115,7 @@ public class ChatController {
         model.addAttribute("messages", allMessages);
         model.addAttribute("names", names);
 
-        return "chat";
+        return ResponseEntity.ok().body(selectedConversation);
     }
 
     /**
@@ -121,88 +124,103 @@ public class ChatController {
      * @return redirects back to the chat page
      */
     @GetMapping("/endChat/{conversationId}")
-    public String endChat(@PathVariable("conversationId") long conversationId) {
+    public ResponseEntity<String> endChat(Principal principal, @PathVariable("conversationId") long conversationId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null) {
+            String test = authentication.getName();
+        }
+        String username = principal.getName();
+        User currentUser = userService.findByName(username);
         Conversation conversation = conversationService.findByConversationID(conversationId);
         if (conversation != null) {
             conversation.setConversationEnded(true);
             conversationService.save(conversation);
+            return ResponseEntity.ok().body("Conversation successfully ended.");
         }
-        return "redirect:/chat/" + conversationId;
+        else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        }
     }
 
-    /**
-     * Refreshes a conversation to pull new messages (if any)
-     * @param conversationId the id of the conversation
-     * @return redirects to the same page (refresh)
-     */
-    @GetMapping("/chat/refresh/{conversationId}")
-    public String refreshChat(@PathVariable("conversationId") long conversationId) {
-        return "redirect:/chat/" + conversationId;
-    }
 
     /**
      * Sends a message in a conversation
-     * @param session the user session
      * @param conversationId the id of the conversation
      * @param messageText the message
      * @return redirects to the same page (refresh)
      */
     @PostMapping("/send-message/{conversationId}")
-    public String sendMessage(HttpSession session, @PathVariable("conversationId") long conversationId, @RequestParam("message") String messageText) {
+    public ResponseEntity<String> sendMessage(Principal principal, @PathVariable("conversationId") long conversationId, @RequestParam("message") String messageText) {
         Conversation conversation = conversationService.findByConversationID(conversationId);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null) {
+            String test = authentication.getName();
+        }
+        String username = principal.getName();
+        User currentUser = userService.findByName(username);
 
         if (conversation != null) {
-            User sessionUser = (User) session.getAttribute("LoggedInUser");
-            if (sessionUser != null) {
-                Message message = new Message(conversationId, sessionUser.getId(), messageText);
+            if (currentUser != null) {
+                Message message = new Message(conversationId, currentUser.getId(), messageText);
 
                 messageService.save(message);
 
-                return "redirect:/chat/" + conversationId;
+                return ResponseEntity.ok().body("Message delivered.");
             }
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authorized.");
         }
-        return "redirect:/";
+        return ResponseEntity.badRequest().body("Invalid request.");
     }
+
 
     /**
      * Creates a conversation between two users
-     * @param session the user session
      * @param sellerId the id of the seller
      * @param title the title of the conversation
      * @return redirects to the new conversation
      */
-    @GetMapping("/create-conversation/{sellerId}/{title}")
-    public String createConversation(HttpSession session, @PathVariable("sellerId") long sellerId, @PathVariable("title") String title) {
-        User sessionUser = (User) session.getAttribute("LoggedInUser");
-        if (sessionUser != null) {
-            Conversation conversation = new Conversation(sessionUser.getId(), sellerId, title);
+    @PostMapping("/create-conversation/{sellerId}/{title}")
+    public ResponseEntity<Conversation> createConversation(Principal principal, @PathVariable("sellerId") long sellerId, @PathVariable("title") String title) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null) {
+            String test = authentication.getName();
+        }
+        String username = principal.getName();
+        User currentUser = userService.findByName(username);
+        if (currentUser != null) {
+            Conversation conversation = new Conversation(currentUser.getId(), sellerId, title);
 
             conversationService.save(conversation);
 
-            return "redirect:/chat/" + conversation.getConversationID();
+            return ResponseEntity.ok().body(conversation);
 
         } else {
-            return "redirect:/";
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         }
     }
 
     /**
      * Starts a conversation with customer service
-     * @param session the user session
      * @return redirects to chats and opens the conversation with Customer Service
      */
     @GetMapping("/create-conversation/customer-service")
-    public String createConversationCustomerService(HttpSession session) {
-        User sessionUser = (User) session.getAttribute("LoggedInUser");
-        if (sessionUser != null) {
-            Conversation conversation = new Conversation(sessionUser.getId(), 10, "Customer Service");
+    public ResponseEntity<Conversation> createConversationCustomerService(Principal principal) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null) {
+            String test = authentication.getName();
+        }
+        String username = principal.getName();
+        User currentUser = userService.findByName(username);
+        if (currentUser != null) {
+            Conversation conversation = new Conversation(currentUser.getId(), 10, "Customer Service");
 
             conversationService.save(conversation);
 
-            return "redirect:/chat/" + conversation.getConversationID();
+            return ResponseEntity.ok().body(conversation);
 
         } else {
-            return "redirect:/";
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         }
     }
 }
