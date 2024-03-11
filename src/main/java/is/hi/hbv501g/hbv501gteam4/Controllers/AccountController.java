@@ -125,7 +125,6 @@ public class AccountController {
 
     /**
      * Deletes the user
-     * @param session session id
      * @param password the password of the user
      * @return if the password is correct then the user is redirected to the home page, otherwise the account page
      */
@@ -136,7 +135,6 @@ public class AccountController {
 
         if (passwordEncoder.matches(password, user.getPassword())) {
             userService.delete(user);
-            session.invalidate();
             return ResponseEntity.ok().body("Account successfully deleted.");
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid password.");
