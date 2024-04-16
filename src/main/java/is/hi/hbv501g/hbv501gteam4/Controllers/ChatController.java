@@ -3,29 +3,24 @@ package is.hi.hbv501g.hbv501gteam4.Controllers;
 import is.hi.hbv501g.hbv501gteam4.Persistence.Entities.Conversation;
 import is.hi.hbv501g.hbv501gteam4.Persistence.Entities.Message;
 import is.hi.hbv501g.hbv501gteam4.Persistence.Entities.User;
-import is.hi.hbv501g.hbv501gteam4.Services.*;
+import is.hi.hbv501g.hbv501gteam4.Services.ConversationService;
+import is.hi.hbv501g.hbv501gteam4.Services.MessageService;
+import is.hi.hbv501g.hbv501gteam4.Services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
-import java.util.ArrayList;
 import java.util.List;
 
 @RestController
+@RequestMapping("/chat")
 public class ChatController {
 
-    ConversationService conversationService;
-    UserService userService;
-    MessageService messageService;
-
-
-
+    private final ConversationService conversationService;
+    private final UserService userService;
+    private final MessageService messageService;
 
     @Autowired
     public ChatController(ConversationService conversationService, UserService userService, MessageService messageService) {
@@ -34,193 +29,78 @@ public class ChatController {
         this.messageService = messageService;
     }
 
-    /**
-     * Opens up the account page if a user is logged in
-     * @return redirects to the chat page if logged in, otherwise to the index page
-     */
-    @RequestMapping("/chat")
-    public ResponseEntity<List<Conversation>> chatPage(Principal principal) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null) {
-            String test = authentication.getName();
-        }
-        String username = principal.getName();
-        User currentUser = userService.findByName(username);
-        if (currentUser != null) {
-            List<Conversation> allConversations = conversationService.findBySellerIdOrBuyerId(currentUser.getId());
-            List<User> contacts = new ArrayList<>();
-            for (Conversation conversation : allConversations) {
-                if (conversation.getBuyerID() == currentUser.getId()) {
-                    contacts.add(userService.findById(conversation.getSellerID()));
-                } else {
-                    contacts.add(userService.findById(conversation.getBuyerID()));
-                }
-            }
-            //TODO: method fyrir contacts?
-            return ResponseEntity.ok().body(allConversations);
-        } else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
-        }
-    }
-
-    /**
-     * Opens up a conversation between two users
-     * @param conversationId the id of the conversation
-     * @return displays the conversation
-     */
-    @GetMapping("/chat/{id}")
-    public ResponseEntity<Conversation> selectConversation(Principal principal, @PathVariable("id") long conversationId, Model model) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null) {
-            String test = authentication.getName();
-        }
-        String username = principal.getName();
-        User currentUser = userService.findByName(username);
+    // Get all conversations for the logged-in user
+    @GetMapping
+    public ResponseEntity<List<Conversation>> getAllConversations(Principal principal) {
+        User currentUser = userService.findByName(principal.getName());
         if (currentUser == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-
-        Conversation selectedConversation = conversationService.findByConversationID(conversationId);
-        List<Conversation> allConversations = conversationService.findBySellerIdOrBuyerId(currentUser.getId());
-
-        List<Message> allMessages = messageService.findByConversationID(conversationId);
-
-        boolean deletedUser = false;
-
-        List<String> names = new ArrayList<>();
-        for (Message message : allMessages) {
-            if(message.getSenderID() == currentUser.getId()) {
-                names.add("You");
-            } else {
-                User user = userService.findById(message.getSenderID());
-                if (user != null) {
-                    names.add(user.getName());
-                } else {
-                    names.add("Deleted user");
-                    deletedUser = true;
-                }
-            }
-        }
-
-        if (deletedUser) {
-            selectedConversation.setConversationEnded(true);
-            conversationService.save(selectedConversation);
-        }
-
-        model.addAttribute("currentConversation", selectedConversation);
-        model.addAttribute("conversations", allConversations);
-
-        model.addAttribute("activeConversation", !selectedConversation.isConversationEnded());
-
-        model.addAttribute("messages", allMessages);
-        model.addAttribute("names", names);
-
-        return ResponseEntity.ok().body(selectedConversation);
+        List<Conversation> conversations = conversationService.findBySellerIdOrBuyerId(currentUser.getId());
+        return ResponseEntity.ok(conversations);
     }
 
-    /**
-     * Ends a conversation between two users
-     * @param conversationId the id of the conversation
-     * @return redirects back to the chat page
-     */
-    @GetMapping("/endChat/{conversationId}")
-    public ResponseEntity<String> endChat(Principal principal, @PathVariable("conversationId") long conversationId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null) {
-            String test = authentication.getName();
+    // Get a specific conversation
+    @GetMapping("/{id}")
+    public ResponseEntity<Conversation> getConversation(Principal principal, @PathVariable("id") long conversationId) {
+        User currentUser = userService.findByName(principal.getName());
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        String username = principal.getName();
-        User currentUser = userService.findByName(username);
         Conversation conversation = conversationService.findByConversationID(conversationId);
-        if (conversation != null) {
-            conversation.setConversationEnded(true);
-            conversationService.save(conversation);
-            return ResponseEntity.ok().body("Conversation successfully ended.");
+        if (conversation == null || (conversation.getBuyerID() != currentUser.getId() && conversation.getSellerID() != currentUser.getId())) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
-        else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
-        }
+        return ResponseEntity.ok(conversation);
     }
 
-
-    /**
-     * Sends a message in a conversation
-     * @param conversationId the id of the conversation
-     * @param messageText the message
-     * @return redirects to the same page (refresh)
-     */
-    @PostMapping("/send-message/{conversationId}")
-    public ResponseEntity<String> sendMessage(Principal principal, @PathVariable("conversationId") long conversationId, @RequestParam("message") String messageText) {
+    // End a conversation
+    @PostMapping("/end/{id}")
+    public ResponseEntity<String> endConversation(Principal principal, @PathVariable("id") long conversationId) {
+        User currentUser = userService.findByName(principal.getName());
         Conversation conversation = conversationService.findByConversationID(conversationId);
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null) {
-            String test = authentication.getName();
+        if (conversation == null || (conversation.getBuyerID() != currentUser.getId() && conversation.getSellerID() != currentUser.getId())) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
-        String username = principal.getName();
-        User currentUser = userService.findByName(username);
-
-        if (conversation != null) {
-            if (currentUser != null) {
-                Message message = new Message(conversationId, currentUser.getId(), messageText);
-
-                messageService.save(message);
-
-                return ResponseEntity.ok().body("Message delivered.");
-            }
-        } else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not authorized.");
-        }
-        return ResponseEntity.badRequest().body("Invalid request.");
+        conversation.setConversationEnded(true);
+        conversationService.save(conversation);
+        return ResponseEntity.ok("Conversation successfully ended.");
     }
 
+    // Send a message in a conversation
+    @PostMapping("/send/{id}")
+    public ResponseEntity<String> sendMessage(Principal principal, @PathVariable("id") long conversationId, @RequestParam("message") String messageText) {
+        User currentUser = userService.findByName(principal.getName());
+        Conversation conversation = conversationService.findByConversationID(conversationId);
+        if (conversation == null || (conversation.getBuyerID() != currentUser.getId() && conversation.getSellerID() != currentUser.getId())) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        Message message = new Message(conversationId, currentUser.getId(), messageText.trim());
+        messageService.save(message);
+        return ResponseEntity.ok("Message sent successfully.");
+    }
 
-    /**
-     * Creates a conversation between two users
-     * @param sellerId the id of the seller
-     * @param title the title of the conversation
-     * @return redirects to the new conversation
-     */
-    @PostMapping("/create-conversation/{sellerId}/{title}")
+    // Create a conversation
+    @PostMapping("/create/{sellerId}/{title}")
     public ResponseEntity<Conversation> createConversation(Principal principal, @PathVariable("sellerId") long sellerId, @PathVariable("title") String title) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null) {
-            String test = authentication.getName();
+        User currentUser = userService.findByName(principal.getName());
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        String username = principal.getName();
-        User currentUser = userService.findByName(username);
-        if (currentUser != null) {
-            Conversation conversation = new Conversation(currentUser.getId(), sellerId, title);
-
-            conversationService.save(conversation);
-
-            return ResponseEntity.ok().body(conversation);
-
-        } else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
-        }
+        Conversation conversation = new Conversation(currentUser.getId(), sellerId, title.trim());
+        conversationService.save(conversation);
+        return ResponseEntity.ok(conversation);
     }
 
-    /**
-     * Starts a conversation with customer service
-     * @return redirects to chats and opens the conversation with Customer Service
-     */
-    @GetMapping("/create-conversation/customer-service")
-    public ResponseEntity<Conversation> createConversationCustomerService(Principal principal) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null) {
-            String test = authentication.getName();
+    // Specialized method to start a conversation with customer service
+    @PostMapping("/customer-service")
+    public ResponseEntity<Conversation> startConversationWithCustomerService(Principal principal) {
+        User currentUser = userService.findByName(principal.getName());
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        String username = principal.getName();
-        User currentUser = userService.findByName(username);
-        if (currentUser != null) {
-            Conversation conversation = new Conversation(currentUser.getId(), 10, "Customer Service");
-
-            conversationService.save(conversation);
-
-            return ResponseEntity.ok().body(conversation);
-
-        } else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
-        }
+        Conversation conversation = new Conversation(currentUser.getId(), 10, "Customer Service");
+        conversationService.save(conversation);
+        return ResponseEntity.ok(conversation);
     }
 }
