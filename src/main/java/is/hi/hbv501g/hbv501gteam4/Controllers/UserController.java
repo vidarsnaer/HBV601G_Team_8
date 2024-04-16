@@ -2,98 +2,78 @@ package is.hi.hbv501g.hbv501gteam4.Controllers;
 
 import is.hi.hbv501g.hbv501gteam4.Persistence.Entities.User;
 import is.hi.hbv501g.hbv501gteam4.Services.UserService;
-import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-
 import java.security.Principal;
 
 @RestController
-@RequestMapping(path = "/user")
+@RequestMapping("/api/users")
 public class UserController {
 
-    UserService userService;
+    private final UserService userService;
 
     @Autowired
     public UserController(UserService userService) {
         this.userService = userService;
     }
 
-
     /**
-     * Handles the user sign in
-     * @param user user entity
-     * @return redirects to home page if successful, otherwise index page
+     * Handles user login.
+     * @param user User entity
+     * @param principal Principal to ensure the request is authenticated
+     * @return ResponseEntity indicating login success or failure
      */
-    @RequestMapping(value = "/login", method = RequestMethod.POST)
-    public ResponseEntity<String> loginPOST(Principal principal, User user, BindingResult result, Model model, HttpSession session) {
+    @PostMapping("/login")
+    public ResponseEntity<String> loginPOST(@RequestBody User user, Principal principal) {
+        if (principal != null) {
+            return ResponseEntity.ok("Already logged in.");
+        }
 
-        if(result.hasErrors()){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result.getAllErrors().toString());
-        }
         User exists = userService.login(user);
-        if(exists != null){
-            session.setAttribute("LoggedInUser", exists);
-            model.addAttribute("LoggedInUser", exists);
-            return ResponseEntity.ok().body("Successfully logged in.");
-        }
-        else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
+        if (exists != null) {
+            return ResponseEntity.ok("Successfully logged in.");
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Login failed");
         }
     }
 
-
     /**
-     * Handles the user sign up
-     * @param user user entity
-     * @param confirmPassword confirmation of password
-     * @return
+     * Handles user registration.
+     * @param user User entity
+     * @param confirmPassword Confirmation password to validate against user's password
+     * @return ResponseEntity indicating registration success or failure
      */
-    @RequestMapping(value = "/signup", method = RequestMethod.POST)
-    public ResponseEntity<String> signupPOST(User user, BindingResult result, Model model, HttpSession session, @RequestParam("confirm-password") String confirmPassword) {
-
-        if(result.hasErrors()){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result.getAllErrors().toString());
-        }
-
+    @PostMapping("/signup")
+    public ResponseEntity<String> signupPOST(@RequestBody User user, @RequestParam("confirm-password") String confirmPassword) {
         if (!user.getPassword().equals(confirmPassword)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Incorrect password");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Passwords do not match.");
         }
 
         User exists = userService.findByEmail(user.getEmail());
-        if(exists == null){
-            BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-            String hashedPassword = passwordEncoder.encode(user.getPassword());
-            user.setPassword(hashedPassword);
-            userService.save(user);
-            User loginUser = userService.login(user);
-            if(loginUser != null){
-                session.setAttribute("LoggedInUser", loginUser);
-                model.addAttribute("LoggedInUser", loginUser);
-                return ResponseEntity.ok().body("Successfully logged in.");
-            } else {
-                return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body("User couldn't be signed up.");
-            }
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
+        if (exists != null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("User already exists.");
         }
+
+        BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        userService.save(user);
+        return ResponseEntity.ok("User registered successfully.");
     }
 
     /**
-     * Signs the user out
-     * @param session the user session
-     * @return redirects back to the index page
+     * Handles user logout.
+     * @param principal Principal to ensure the request is authenticated
+     * @return ResponseEntity indicating logout success
      */
-    @RequestMapping("/logout")
-    public ResponseEntity<String> logout(HttpSession session) {
-        session.invalidate();
-        return ResponseEntity.ok().body("Successfully logged out.");
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not logged in.");
+        }
+        return ResponseEntity.ok("Successfully logged out.");
     }
 
 }

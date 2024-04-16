@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 import org.springframework.http.*;
 
 @RestController
-@RequestMapping("/disc")
+@RequestMapping("/api/disc")
 public class DiscController {
 
     DiscService discService;
