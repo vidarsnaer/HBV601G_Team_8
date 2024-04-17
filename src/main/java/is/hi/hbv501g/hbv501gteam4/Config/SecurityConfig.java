@@ -37,7 +37,7 @@ public class SecurityConfig {
                 .httpBasic(customizer -> customizer.realmName("DiscApp"))
                 .authorizeHttpRequests(authz -> authz
                         // Update this part according to the new method provided by Spring Security if antMatchers() is deprecated.
-                        .requestMatchers("/login", "/signup").permitAll()
+                        .requestMatchers("/api/users/login", "/api/users/signup").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
