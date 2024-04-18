@@ -1,6 +1,7 @@
 package is.hi.hbv501g.hbv501gteam4.Services.Implmentation;
 
 import is.hi.hbv501g.hbv501gteam4.Persistence.Entities.Disc;
+import is.hi.hbv501g.hbv501gteam4.Persistence.Entities.User;
 import is.hi.hbv501g.hbv501gteam4.Repositories.DiscRepository;
 import is.hi.hbv501g.hbv501gteam4.Services.DiscService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,6 +60,11 @@ public class DiscServiceImplementation implements DiscService {
     @Override
     public List<Disc> findByNameContainingIgnoreCase(String partialName) {
         return discRepository.findByNameContainingIgnoreCase(partialName);
+    }
+
+    @Override
+    public List<Disc> findByUser(User user) {
+        return discRepository.findByUser(user);
     }
 
     @Override

@@ -54,6 +54,22 @@ public class ChatController {
         return ResponseEntity.ok(conversation);
     }
 
+    @GetMapping("/messages/{conversationId}")
+    public ResponseEntity<List<Message>> getMessagesForConversation(Principal principal, @PathVariable("conversationId") long conversationId) {
+        User currentUser = userService.findByName(principal.getName());
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        Conversation conversation = conversationService.findByConversationID(conversationId);
+        if (conversation == null || (conversation.getBuyerID() != currentUser.getId() && conversation.getSellerID() != currentUser.getId())) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        List<Message> messages = messageService.findByConversationID(conversationId);
+        return ResponseEntity.ok(messages);
+    }
+
     // End a conversation
     @PostMapping("/end/{id}")
     public ResponseEntity<String> endConversation(Principal principal, @PathVariable("id") long conversationId) {

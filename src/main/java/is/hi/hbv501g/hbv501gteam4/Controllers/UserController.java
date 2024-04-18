@@ -43,15 +43,10 @@ public class UserController {
     /**
      * Handles user registration.
      * @param user User entity
-     * @param confirmPassword Confirmation password to validate against user's password
      * @return ResponseEntity indicating registration success or failure
      */
     @PostMapping("/signup")
-    public ResponseEntity<String> signupPOST(@RequestBody User user, @RequestParam("confirm-password") String confirmPassword) {
-        if (!user.getPassword().equals(confirmPassword)) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Passwords do not match.");
-        }
-
+    public ResponseEntity<?> signupPOST(@RequestBody User user) {
         User exists = userService.findByEmail(user.getEmail());
         if (exists != null) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("User already exists.");
@@ -60,20 +55,8 @@ public class UserController {
         BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         userService.save(user);
-        return ResponseEntity.ok("User registered successfully.");
+        return ResponseEntity.ok(user);
     }
 
-    /**
-     * Handles user logout.
-     * @param principal Principal to ensure the request is authenticated
-     * @return ResponseEntity indicating logout success
-     */
-    @PostMapping("/logout")
-    public ResponseEntity<String> logout(Principal principal) {
-        if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not logged in.");
-        }
-        return ResponseEntity.ok("Successfully logged out.");
-    }
 
 }

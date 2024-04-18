@@ -22,6 +22,50 @@ public class Disc {
 
     private int price;
 
+    private double latitude;
+    private double longitude;
+
+    public Disc(String name, String description, String type, String condition, String colour, int price, double latitude, double longitude, List<Image> images, User user, List<Favorite> favorites) {
+        this.name = name;
+        this.description = description;
+        this.type = type;
+        this.condition = condition;
+        this.colour = colour;
+        this.price = price;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.images = images;
+        this.user = user;
+        this.favorites = favorites;
+    }
+
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
+    }
+
+    public double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public List<Favorite> getFavorites() {
+        return favorites;
+    }
+
+    public void setFavorites(List<Favorite> favorites) {
+        this.favorites = favorites;
+    }
 
     @OneToMany(mappedBy = "disc", cascade = CascadeType.ALL)
     List<Image> images = new ArrayList<>();

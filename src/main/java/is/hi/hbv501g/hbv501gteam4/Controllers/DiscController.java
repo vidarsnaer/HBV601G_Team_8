@@ -473,4 +473,31 @@ public class DiscController {
 
         return ResponseEntity.ok(filteredDiscs);
     }
+
+    /**
+     * Retrieves and displays the details of the disc with the specified ID,
+     * along with its favorite status and associated images.
+     *
+     * @param id the identifier of the disc to retrieve details for.
+     * @param principal Principal object to fetch the authenticated user's details.
+     * @return ResponseEntity containing the disc details if found, otherwise an error message.
+     */
+    @GetMapping("/mydiscs/{userId}")
+    public ResponseEntity<List<Disc>> discsByUser(@PathVariable("userId") long userId, Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        User user = userService.findById(userId);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        List<Disc> myDiscs = discService.findByUser(user);
+        if (myDiscs == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(myDiscs);
+    }
 }
