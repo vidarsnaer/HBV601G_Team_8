@@ -89,18 +89,41 @@ public class DiscController {
         return ResponseEntity.ok(favoriteDiscs);
     }
 
+    /**
+     * Checks if a given disc is marked as a favorite by the logged-in user.
+     * @param discId the ID of the disc to check
+     * @param principal security context to fetch the authenticated user's details
+     * @return ResponseEntity containing a boolean value, true if the disc is a favorite
+     */
+    @GetMapping("/isFavorite/{discId}")
+    public ResponseEntity<Boolean> isDiscFavoriteGET(@PathVariable long discId, Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        User user = userService.findByName(principal.getName());
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        Disc discToCheck = discService.findBydiscID(discId);
+
+        Favorite favorite = favoriteService.findFavoriteByUserAndDisc(user, discToCheck);
+        boolean isFavorite = favorite != null;
+
+        return ResponseEntity.ok(isFavorite);
+    }
+
 
     /**
      * Adds a disc to the database, handling image uploads.
      * @param disc the disc being added
      * @param result to capture validation results
-     * @param images images that were uploaded with the new disc
      * @param principal to identify the logged-in user
-     * @return ResponseEntity with status message
+     * @return ResponseEntity with newly created Disc
      */
     @PostMapping("/addDisc")
-    public ResponseEntity<String> addDiscPOST(@RequestBody Disc disc, BindingResult result,
-                                              @RequestParam("image") MultipartFile[] images,
+    public ResponseEntity<?> addDiscPOST(@RequestBody Disc disc, BindingResult result,
                                               Principal principal) {
         if (result.hasErrors()) {
             return ResponseEntity.badRequest().body("Error in disc data.");
@@ -113,12 +136,7 @@ public class DiscController {
 
         disc.setUser(user);
         Disc discSaved = discService.save(disc);
-        if (addImage(discSaved, images)) {
-            return ResponseEntity.status(HttpStatus.CREATED).body("Disc successfully added with images.");
-        } else {
-            return ResponseEntity.ok("Disc added, but failed to add images.");
-        }
-        //TODO: skila nýja Disc?
+        return ResponseEntity.status(HttpStatus.CREATED).body(discSaved);
     }
 
 
@@ -127,13 +145,11 @@ public class DiscController {
      * @param id The ID of the disc to update.
      * @param disc The updated disc information.
      * @param result BindingResult to handle validation results.
-     * @param images Array of MultipartFile images that are being updated with the disc.
      * @param principal Principal object to ensure the user is authorized.
      * @return ResponseEntity with status message.
      */
     @PostMapping("/update/{id}")
-    public ResponseEntity<String> updateDiscPOST(@PathVariable long id, @RequestBody Disc disc, BindingResult result,
-                                                 @RequestParam("image") MultipartFile[] images, Principal principal) {
+    public ResponseEntity<String> updateDiscPOST(@PathVariable long id, @RequestBody Disc disc, BindingResult result, Principal principal) {
         if (result.hasErrors()) {
             return ResponseEntity.badRequest().body("Validation errors: " + result.getAllErrors());
         }
@@ -154,12 +170,7 @@ public class DiscController {
         }
 
         Disc discSaved = discService.save(disc);
-        boolean imagesUpdated = addImage(discSaved, images);
-        if (imagesUpdated) {
-            return ResponseEntity.ok("Disc and images successfully updated.");
-        } else {
-            return ResponseEntity.ok("Disc updated, but some images failed to update.");
-        }
+        return ResponseEntity.ok("Disc successfully updated.");
     }
 
     /**
@@ -380,13 +391,11 @@ public class DiscController {
     /**
      * Removes a disc from favorites based on the favorite ID.
      * @param discId ID of the disc that should be removed from favorites
-     * @param favoriteId ID of the favorite record to be deleted
      * @param principal Principal object to fetch the authenticated user's details
      * @return ResponseEntity with status message
      */
-    @DeleteMapping("/{discId}/{favoriteId}")
+    @DeleteMapping("/favorite/{discId}")
     public ResponseEntity<String> removeFromFavorites(@PathVariable("discId") long discId,
-                                                      @PathVariable("favoriteId") long favoriteId,
                                                       Principal principal) {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User must be logged in.");
@@ -397,7 +406,8 @@ public class DiscController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found.");
         }
 
-        Favorite favorite = favoriteService.findById(favoriteId);
+        Disc disc = discService.findBydiscID(discId);
+        Favorite favorite = favoriteService.findFavoriteByUserAndDisc(user, disc);
         if (favorite == null || !favorite.getUser().equals(user)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Favorite not found or user does not own this favorite.");
         }
@@ -425,6 +435,7 @@ public class DiscController {
     public ResponseEntity<List<Disc>> filterDiscs(
             @RequestParam(value = "fromPrice", required = false) Integer fromPrice,
             @RequestParam(value = "toPrice", required = false) Integer toPrice,
+            @RequestParam(value = "type", required = false) String type,
             @RequestParam(value = "colour", required = false) String colour,
             @RequestParam(value = "condition", required = false) String condition,
             @RequestParam(value = "name", required = false) String name,
@@ -459,6 +470,12 @@ public class DiscController {
             }
         }
 
+        if (type != null && !type.isEmpty()) {
+            filteredDiscs = filteredDiscs.stream()
+                    .filter(d -> d.getType().equalsIgnoreCase(type))
+                    .collect(Collectors.toList());
+        }
+
         if (colour != null && !colour.isEmpty()) {
             filteredDiscs = filteredDiscs.stream()
                     .filter(d -> d.getColour().equalsIgnoreCase(colour))
@@ -478,7 +495,7 @@ public class DiscController {
      * Retrieves and displays the details of the disc with the specified ID,
      * along with its favorite status and associated images.
      *
-     * @param id the identifier of the disc to retrieve details for.
+     * @param userId the identifier of the user to retrieve discs for.
      * @param principal Principal object to fetch the authenticated user's details.
      * @return ResponseEntity containing the disc details if found, otherwise an error message.
      */
