@@ -31,7 +31,7 @@ public class AccountController {
     }
 
     // Change the logged in user's name
-    @PostMapping("/changename")
+    @PostMapping("/changeName")
     public ResponseEntity<String> changeName(Principal principal, @RequestParam("name") String newName) {
         User user = userService.findByName(principal.getName());
         if (newName == null || newName.trim().isEmpty()) {
@@ -44,7 +44,7 @@ public class AccountController {
     }
 
     // Change the logged in user's email
-    @PostMapping("/changeemail")
+    @PostMapping("/changeEmail")
     public ResponseEntity<String> changeEmail(Principal principal, @RequestParam("old-email") String oldEmail, @RequestParam("new-email") String newEmail) {
         User user = userService.findByName(principal.getName());
         if (!oldEmail.equals(user.getEmail())) {
@@ -57,7 +57,7 @@ public class AccountController {
     }
 
     // Change the logged in user's password
-    @PostMapping("/changepass")
+    @PostMapping("/changePass")
     public ResponseEntity<String> changePassword(Principal principal, @RequestParam("old-pass") String oldPass, @RequestParam("new-pass") String newPass, @RequestParam("confirm-pass") String confirmPass) {
         if (!newPass.equals(confirmPass)) {
             return ResponseEntity.badRequest().body("Passwords do not match.");

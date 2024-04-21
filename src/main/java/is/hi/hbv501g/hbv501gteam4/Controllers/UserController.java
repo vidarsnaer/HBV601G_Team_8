@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.security.Principal;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/user")
 public class UserController {
 
     private final UserService userService;
@@ -22,19 +22,16 @@ public class UserController {
 
     /**
      * Handles user login.
-     * @param user User entity
-     * @param principal Principal to ensure the request is authenticated
-     * @return ResponseEntity indicating login success or failure
      */
     @PostMapping("/login")
-    public ResponseEntity<String> loginPOST(@RequestHeader String userEmail, @RequestHeader String userPassword, Principal principal) {
+    public ResponseEntity<String> loginPOST(@RequestHeader String userName, @RequestHeader String userPassword, Principal principal) {
         System.out.println(principal);
         if (principal != null) {
             return ResponseEntity.ok("Already logged in.");
         }
-        System.out.println(userEmail);
+        System.out.println(userName);
         System.out.println(userPassword);
-        User user = userService.findByEmail(userEmail); //seinna find by email and password
+        User user = userService.findByName(userName); //seinna find by name and password?
         User exists = userService.login(user);
         System.out.println(user);
         System.out.println(user.getId());
@@ -53,9 +50,13 @@ public class UserController {
      */
     @PostMapping("/signup")
     public ResponseEntity<?> signupPOST(@RequestBody User user) {
-        User exists = userService.findByEmail(user.getEmail());
-        if (exists != null) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("User already exists.");
+        User existsEmail = userService.findByEmail(user.getEmail());
+        if (existsEmail != null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Email already taken.");
+        }
+        User existsName = userService.findByName(user.getName());
+        if (existsName != null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Username already taken.");
         }
 
         BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();

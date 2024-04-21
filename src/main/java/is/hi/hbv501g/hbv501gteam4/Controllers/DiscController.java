@@ -50,7 +50,7 @@ public class DiscController {
 
 
     @GetMapping("/all")
-    public ResponseEntity<List<Disc>> indexPageLoggedIn(Principal principal) {
+    public ResponseEntity<List<Disc>> getAllDiscs(Principal principal) {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -73,8 +73,8 @@ public class DiscController {
      * @param principal Principal object to fetch the authenticated user's details.
      * @return ResponseEntity with list of favorite discs or UNAUTHORIZED if no user is found.
      */
-    @GetMapping("/home/favorites")
-    public ResponseEntity<List<Disc>> homePageFavorites(Principal principal) {
+    @GetMapping("/favorite/all")
+    public ResponseEntity<List<Disc>> getAllFavorites(Principal principal) {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -99,7 +99,7 @@ public class DiscController {
      * @param principal security context to fetch the authenticated user's details
      * @return ResponseEntity containing a boolean value, true if the disc is a favorite
      */
-    @GetMapping("/isFavorite/{discId}")
+    @GetMapping("/isfavorite/{discId}")
     public ResponseEntity<Boolean> isDiscFavoriteGET(@PathVariable long discId, Principal principal) {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -126,7 +126,7 @@ public class DiscController {
      * @param principal to identify the logged-in user
      * @return ResponseEntity with newly created Disc
      */
-    @PostMapping("/addDisc")
+    @PostMapping("/add")
     public ResponseEntity<?> addDiscPOST(@RequestBody Disc disc, BindingResult result,
                                               Principal principal) {
         if (result.hasErrors()) {
@@ -142,7 +142,6 @@ public class DiscController {
         Disc discSaved = discService.save(disc);
         return ResponseEntity.status(HttpStatus.CREATED).body(discSaved);
     }
-
 
     /**
      * Updates the disc information in the database and handles image updates.
@@ -183,7 +182,7 @@ public class DiscController {
      *           @param principal Principal object to ensure the user is authorized.
      * @return ResponseEntity with status message.
      */
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/delete/{id}")
     public ResponseEntity<String> deleteDisc(@PathVariable("id") long id, Principal principal) {
         User user = userService.findByName(principal.getName());
         if (user == null) {
@@ -200,13 +199,13 @@ public class DiscController {
 
     /**
      * Deletes an image associated with a disc.
-     * @param id The ID of the disc the image is connected to.
+     * @param discId The ID of the disc the image is connected to.
      * @param imageId The ID of the image to delete.
      * @param principal Principal object to ensure the user is authorized.
      * @return ResponseEntity with status message.
      */
-    @DeleteMapping("/{id}/images/{imageId}")
-    public ResponseEntity<String> deleteImage(@PathVariable("id") long id,
+    @DeleteMapping("/images/delete/{discId}/{imageId}")
+    public ResponseEntity<String> deleteImage(@PathVariable("discId") long discId,
                                               @PathVariable("imageId") long imageId,
                                               Principal principal) {
         User user = userService.findByName(principal.getName());
@@ -223,7 +222,7 @@ public class DiscController {
         }
 
         // Optional: Check if the logged-in user has permissions to delete this particular image
-        Disc disc = discService.findBydiscID(id);
+        Disc disc = discService.findBydiscID(discId);
         if (!disc.getUserId().equals(user.getId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Unauthorized to delete this image.");
         }
@@ -370,7 +369,7 @@ public class DiscController {
      * @param principal Principal object to fetch the authenticated user's details
      * @return ResponseEntity with status message
      */
-    @PostMapping("/favorites/{discId}")
+    @PostMapping("/favorite/{discId}")
     public ResponseEntity<String> addToFavorites(@PathVariable("discId") long discId, Principal principal) {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User must be logged in to add favorites.");
@@ -398,7 +397,7 @@ public class DiscController {
      * @param principal Principal object to fetch the authenticated user's details
      * @return ResponseEntity with status message
      */
-    @DeleteMapping("/favorite/{discId}")
+    @DeleteMapping("/delete/favorite/{discId}")
     public ResponseEntity<String> removeFromFavorites(@PathVariable("discId") long discId,
                                                       Principal principal) {
         if (principal == null) {
@@ -496,14 +495,13 @@ public class DiscController {
     }
 
     /**
-     * Retrieves and displays the details of the disc with the specified ID,
-     * along with its favorite status and associated images.
+     * Retrieves discs listed by spcific user
      *
      * @param userId the identifier of the user to retrieve discs for.
      * @param principal Principal object to fetch the authenticated user's details.
      * @return ResponseEntity containing the disc details if found, otherwise an error message.
      */
-    @GetMapping("/mydiscs/{userId}")
+    @GetMapping("/listings/{userId}")
     public ResponseEntity<List<Disc>> discsByUser(@PathVariable("userId") long userId, Principal principal) {
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();

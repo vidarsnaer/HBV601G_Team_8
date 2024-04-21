@@ -30,7 +30,7 @@ public class ChatController {
     }
 
     // Get all conversations for the logged-in user
-    @GetMapping
+    @GetMapping("/conversation/all")
     public ResponseEntity<List<Conversation>> getAllConversations(Principal principal) {
         User currentUser = userService.findByName(principal.getName());
         if (currentUser == null) {
@@ -41,7 +41,7 @@ public class ChatController {
     }
 
     // Get a specific conversation
-    @GetMapping("/{id}")
+    @GetMapping("/conversation/{id}")
     public ResponseEntity<Conversation> getConversation(Principal principal, @PathVariable("id") long conversationId) {
         User currentUser = userService.findByName(principal.getName());
         if (currentUser == null) {
@@ -71,7 +71,7 @@ public class ChatController {
     }
 
     // End a conversation
-    @PostMapping("/end/{id}")
+    @PostMapping("/conversation/end/{id}")
     public ResponseEntity<String> endConversation(Principal principal, @PathVariable("id") long conversationId) {
         User currentUser = userService.findByName(principal.getName());
         Conversation conversation = conversationService.findByConversationID(conversationId);
@@ -84,7 +84,7 @@ public class ChatController {
     }
 
     // Send a message in a conversation
-    @PostMapping("/send/{id}")
+    @PostMapping("/messages/send/{id}")
     public ResponseEntity<String> sendMessage(Principal principal, @PathVariable("id") long conversationId, @RequestParam("message") String messageText) {
         User currentUser = userService.findByName(principal.getName());
         Conversation conversation = conversationService.findByConversationID(conversationId);
@@ -97,7 +97,7 @@ public class ChatController {
     }
 
     // Create a conversation
-    @PostMapping("/create/{sellerId}/{title}")
+    @PostMapping("/conversation/create/{sellerId}/{title}")
     public ResponseEntity<Conversation> createConversation(Principal principal, @PathVariable("sellerId") long sellerId, @PathVariable("title") String title) {
         User currentUser = userService.findByName(principal.getName());
         if (currentUser == null) {
@@ -109,13 +109,13 @@ public class ChatController {
     }
 
     // Specialized method to start a conversation with customer service
-    @PostMapping("/customer-service")
+    @PostMapping("/conversation/customerservice")
     public ResponseEntity<Conversation> startConversationWithCustomerService(Principal principal) {
         User currentUser = userService.findByName(principal.getName());
         if (currentUser == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        Conversation conversation = new Conversation(currentUser.getId(), 10, "Customer Service");
+        Conversation conversation = new Conversation(currentUser.getId(), -99, "Customer Service");
         conversationService.save(conversation);
         return ResponseEntity.ok(conversation);
     }

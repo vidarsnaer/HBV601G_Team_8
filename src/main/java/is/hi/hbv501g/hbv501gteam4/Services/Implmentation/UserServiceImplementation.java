@@ -60,7 +60,7 @@ public class UserServiceImplementation implements UserService {
     public User login(User user) {
         BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-        User doesExist = findByEmail(user.getEmail());
+        User doesExist = findByName(user.getName());
         System.out.println(doesExist);
         System.out.println(user.getPassword());
         System.out.println(doesExist.getPassword());
@@ -85,14 +85,14 @@ public class UserServiceImplementation implements UserService {
     }
 
     @Override
-    public UserDetails loadUserByUsername(String userEmail) throws UsernameNotFoundException {
-        User user = findByEmail(userEmail);  // Assuming username is the email
+    public UserDetails loadUserByUsername(String userName) throws UsernameNotFoundException {
+        User user = findByName(userName);  // name used to authenticate user
         if (user == null) {
-            throw new UsernameNotFoundException("User not found with email: " + userEmail);
+            throw new UsernameNotFoundException("User not found with username: " + userName);
         }
 
         return new org.springframework.security.core.userdetails.User(
-                user.getEmail(),
+                user.getName(),
                 user.getPassword(),
                 true, true, true, true,
                 AuthorityUtils.createAuthorityList("USER")); // Specify user roles as needed
