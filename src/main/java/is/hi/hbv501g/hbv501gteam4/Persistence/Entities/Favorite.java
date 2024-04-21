@@ -3,8 +3,10 @@ package is.hi.hbv501g.hbv501gteam4.Persistence.Entities;
 
 import jakarta.persistence.*;
 
+import java.io.Serializable;
+
 @Entity
-public class Favorite {
+public class Favorite implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

@@ -32,6 +32,7 @@ public class SecurityConfig {
                 .passwordEncoder(passwordEncoder());
     }
 
+    /*
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -40,6 +41,19 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/api/users/login", "/api/users/signup").permitAll()
                         .anyRequest().authenticated())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        return http.build();
+    }
+     */
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(AbstractHttpConfigurer::disable)
+                .httpBasic(customizer -> customizer.realmName("DiscApp"))
+                .authorizeHttpRequests(authz -> authz
+                        .anyRequest().permitAll()) // Allow all requests
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         return http.build();

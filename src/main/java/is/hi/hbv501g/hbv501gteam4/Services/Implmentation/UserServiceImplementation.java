@@ -61,12 +61,17 @@ public class UserServiceImplementation implements UserService {
         BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
         User doesExist = findByEmail(user.getEmail());
+        System.out.println(doesExist);
+        System.out.println(user.getPassword());
+        System.out.println(doesExist.getPassword());
+
         if(doesExist != null){
             if(passwordEncoder.matches(user.getPassword(), doesExist.getPassword())){
                 return doesExist;
             }
         }
         return null;
+
     }
 
     @Override
@@ -80,10 +85,10 @@ public class UserServiceImplementation implements UserService {
     }
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = findByEmail(username);  // Assuming username is the email
+    public UserDetails loadUserByUsername(String userEmail) throws UsernameNotFoundException {
+        User user = findByEmail(userEmail);  // Assuming username is the email
         if (user == null) {
-            throw new UsernameNotFoundException("User not found with email: " + username);
+            throw new UsernameNotFoundException("User not found with email: " + userEmail);
         }
 
         return new org.springframework.security.core.userdetails.User(

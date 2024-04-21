@@ -27,12 +27,18 @@ public class UserController {
      * @return ResponseEntity indicating login success or failure
      */
     @PostMapping("/login")
-    public ResponseEntity<String> loginPOST(@RequestBody User user, Principal principal) {
+    public ResponseEntity<String> loginPOST(@RequestHeader String userEmail, @RequestHeader String userPassword, Principal principal) {
+        System.out.println(principal);
         if (principal != null) {
             return ResponseEntity.ok("Already logged in.");
         }
-
+        System.out.println(userEmail);
+        System.out.println(userPassword);
+        User user = userService.findByEmail(userEmail); //seinna find by email and password
         User exists = userService.login(user);
+        System.out.println(user);
+        System.out.println(user.getId());
+        System.out.println(exists);
         if (exists != null) {
             return ResponseEntity.ok("Successfully logged in.");
         } else {

@@ -2,9 +2,11 @@ package is.hi.hbv501g.hbv501gteam4.Persistence.Entities;
 
 import jakarta.persistence.*;
 
+import java.io.Serializable;
+
 @Entity
 @Table(name = "conversation")
-public class Conversation {
+public class Conversation implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long conversationID;

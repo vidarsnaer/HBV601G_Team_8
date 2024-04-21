@@ -2,11 +2,12 @@ package is.hi.hbv501g.hbv501gteam4.Persistence.Entities;
 
 import jakarta.persistence.*;
 
+import java.io.Serializable;
 import java.time.ZonedDateTime;
 
 @Entity
 @Table(name = "message")
-public class Message {
+public class Message implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long messageID;

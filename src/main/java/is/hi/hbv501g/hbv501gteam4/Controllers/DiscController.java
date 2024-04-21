@@ -60,6 +60,10 @@ public class DiscController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
+        System.out.println(principal);
+        System.out.println(principal.getName());
+        System.out.println(user.getId());
+
         List<Disc> allDiscs = discService.findAll();
         return ResponseEntity.ok(allDiscs);
     }

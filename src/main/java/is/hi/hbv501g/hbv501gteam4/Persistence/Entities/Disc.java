@@ -1,13 +1,15 @@
 package is.hi.hbv501g.hbv501gteam4.Persistence.Entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "discs")
-public class Disc {
+public class Disc implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,6 +26,9 @@ public class Disc {
 
     private double latitude;
     private double longitude;
+
+    public Disc() {
+    }
 
     public Disc(String name, String description, String type, String condition, String colour, int price, double latitude, double longitude, List<Image> images, User user, List<Favorite> favorites) {
         this.name = name;
@@ -68,9 +73,11 @@ public class Disc {
     }
 
     @OneToMany(mappedBy = "disc", cascade = CascadeType.ALL)
+    @JsonIgnore
     List<Image> images = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JsonIgnore
     private User user;
 
     @OneToMany(mappedBy = "disc", cascade = CascadeType.ALL, orphanRemoval = true)
